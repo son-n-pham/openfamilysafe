@@ -1,1 +1,3 @@
-# openfamilysafe
+# Open Family Safe
+
+The project is a web app intended for bypassing local website blocks, with a focus on security and parental control for family use. The core features include a tiered user system: you, as the parent, will have comprehensive admin authentication and approval capabilities for other users, such as your daughters. This allows for customized content filtering and monitoring tailored to individual needs. The technical foundation is suggested to utilize serverless or similar systems for efficiency and cost-effectiveness, with scalability kept in mind. Legally, the plan is to open-source the code, including clear disclaimers to ensure individual users are responsible for compliance and liability.
