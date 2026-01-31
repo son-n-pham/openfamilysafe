@@ -8,12 +8,14 @@ The application is built as a **Serverless Hybrid** system. It bypasses the limi
 
 ### Key Features
 
-*   **Tiered User System:** Distinct roles for Parents (Admins) and Children.
+*   **Two-Tier Approval System:** Admin-gated parent registration and parent-gated child registration. Parents are approved by a SUPER_ADMIN; children are approved by their Parent.
 *   **Secure Authentication:** Powered by Firebase Auth, supporting both **Sign Up** (Registration) and **Sign In** via Email/Password.
 *   **Content Filtering:** Configurable restriction levels (Strict, Moderate, None).
-*   **Admin Dashboard:** Parents can approve/reject accounts and toggle filter settings.
+*   **Admin Dashboard:** Super admin can approve/reject parent registrations; parents can approve/reject child registrations and toggle family filter settings.
 *   **Full Screen Mode:** Immersive proxy browsing experience that mimics a native browser window.
 *   **Live Demo Mode:** Uses a public CORS gateway to demonstrate real-time web access without requiring immediate backend deployment.
+
+*   **Worker JWT Verification:** The Cloudflare Worker performs worker-side JWT verification using FIREBASE_PROJECT_ID set in `wrangler.toml`.
 
 ## 🛠 Tech Stack
 

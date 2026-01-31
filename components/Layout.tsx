@@ -5,7 +5,7 @@ import { Button } from './UI';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, userProfile, logout, isAdmin, isDemo } = useAuth();
+  const { currentUser, userProfile, logout, isAdmin, isParent, isDemo } = useAuth();
   const location = useLocation();
   const proxyMode = getProxyMode();
 
@@ -37,13 +37,25 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
                   <Link
                     to="/"
                     className={`${
-                      location.pathname === '/' 
-                        ? 'border-brand-500 text-gray-900' 
+                      location.pathname === '/'
+                        ? 'border-brand-500 text-gray-900'
                         : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
                     } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
                   >
                     Browse
                   </Link>
+                  {isParent && (
+                    <Link
+                      to="/family"
+                      className={`${
+                        location.pathname === '/family'
+                          ? 'border-brand-500 text-gray-900'
+                          : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'
+                      } inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium`}
+                    >
+                      My Family
+                    </Link>
+                  )}
                   {isAdmin && (
                     <Link
                       to="/admin"

@@ -1,121 +1,149 @@
+// services/authContext.tsx
 import React, { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, onAuthStateChanged, signOut as firebaseSignOut } from 'firebase/auth';
-import { auth } from '../firebase';
-import { UserRole, UserProfile, FilterLevel } from '../types';
+import { 
+  User, 
+  onAuthStateChanged, 
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut as firebaseSignOut 
+} from 'firebase/auth';
+import { onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { auth, userDoc } from '../firebase';
+import { UserRole, UserProfile, ApprovalStatus } from '../types';
+import { createUserProfile, getUserProfile } from './userService';
 
 interface AuthContextType {
-  currentUser: User | null;
-  userProfile: UserProfile | null;
+  user: User | null;                    // Firebase Auth user
+  userProfile: UserProfile | null;      // Firestore user profile
   loading: boolean;
-  logout: () => Promise<void>;
-  isAdmin: boolean;
-  simulateLogin: (email: string) => void;
-  isDemo: boolean;
+  isAuthenticated: boolean;
+  isApproved: boolean;                  // Convenience: approvalStatus === APPROVED
+  isPending: boolean;                   // Convenience: approvalStatus === PENDING
+  isSuperAdmin: boolean;                // Convenience: role === SUPER_ADMIN
+  isParent: boolean;                    // Convenience: role === PARENT
+  isChild: boolean;                     // Convenience: role === CHILD
+  signIn: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, role: 'parent' | 'child', parentEmail?: string) => Promise<void>;
+  signOut: () => Promise<void>;
+  refreshProfile: () => Promise<void>;  // Manually refresh user profile
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Mock profile for demonstration since we don't have a live DB connection in this environment
-const MOCK_ADMIN_PROFILE: UserProfile = {
-  uid: 'admin-123',
-  email: 'parent@example.com',
-  displayName: 'Parent Admin',
-  role: UserRole.ADMIN,
-  filterLevel: FilterLevel.NONE,
-  createdAt: Date.now()
-};
-
-const MOCK_CHILD_PROFILE: UserProfile = {
-  uid: 'child-123',
-  email: 'child@example.com',
-  displayName: 'Alice',
-  role: UserRole.CHILD,
-  filterLevel: FilterLevel.STRICT,
-  parentEmail: 'parent@example.com',
-  createdAt: Date.now()
-};
-
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isDemo, setIsDemo] = useState(false);
 
   useEffect(() => {
-    // We add an error callback to onAuthStateChanged. 
-    // If the API key is invalid, the error callback triggers, allowing us to stop loading.
-    const unsubscribe = onAuthStateChanged(auth, 
-      async (user) => {
-        if (user) {
-          setCurrentUser(user);
-          // In a real app, we would fetch the user profile from Firestore here.
-          // For now, we simulate profile fetching based on the email.
-          if (user.email?.includes('parent')) {
-            setUserProfile({ ...MOCK_ADMIN_PROFILE, uid: user.uid, email: user.email });
+    let unsubscribeProfile: Unsubscribe | undefined;
+
+    const unsubscribeAuth = onAuthStateChanged(auth, async (firebaseUser) => {
+      setUser(firebaseUser);
+
+      // Clean up previous profile listener if it exists
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+        unsubscribeProfile = undefined;
+      }
+
+      if (firebaseUser) {
+        // Fetch user profile from Firestore and listen for changes
+        const ref = userDoc(firebaseUser.uid);
+        
+        unsubscribeProfile = onSnapshot(ref, (doc) => {
+          if (doc.exists()) {
+             const data = doc.data() as UserProfile;
+             setUserProfile(data);
           } else {
-            setUserProfile({ ...MOCK_CHILD_PROFILE, uid: user.uid, email: user.email || 'child@test.com' });
+             // Profile might not exist yet (e.g., immediate post-creation race or legacy user)
+             setUserProfile(null);
           }
-        } else {
-          // Only clear if we aren't manually managing state (simple check)
-          // For this demo, we assume if onAuthStateChanged fires with null, we are logged out.
-          setCurrentUser(null);
-          setUserProfile(null);
-        }
-        setLoading(false);
-      },
-      (error) => {
-        console.warn("Firebase Auth Error (likely invalid API Key). App will default to Demo Mode.", error);
-        setIsDemo(true);
+          setLoading(false);
+        }, (error) => {
+          console.error("Error fetching user profile:", error);
+          // If error occurs (e.g. permission denied), we stop loading to avoid indefinite spinner
+          setLoading(false);
+        });
+      } else {
+        // User logged out
+        setUserProfile(null);
         setLoading(false);
       }
-    );
+    });
 
-    return unsubscribe;
+    return () => {
+      unsubscribeAuth();
+      if (unsubscribeProfile) {
+        unsubscribeProfile();
+      }
+    };
   }, []);
 
-  const logout = async () => {
+  const signIn = async (email: string, password: string) => {
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const signUp = async (email: string, password: string, role: 'parent' | 'child', parentEmail?: string) => {
+    try {
+      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+      const firebaseUser = userCredential.user;
+      
+      const userRole = role === 'parent' ? UserRole.PENDING_PARENT : UserRole.PENDING_CHILD;
+      
+      await createUserProfile(firebaseUser, userRole, parentEmail);
+    } catch (error) {
+      console.error("Sign up error:", error);
+      throw error;
+    }
+  };
+
+  const signOut = async () => {
     try {
       await firebaseSignOut(auth);
-    } catch (e) {
-      console.warn("Firebase signout failed (expected in Demo Mode). Clearing local state.");
-    }
-    setCurrentUser(null);
-    setUserProfile(null);
-  };
-
-  const simulateLogin = (email: string) => {
-    setIsDemo(true);
-    const mockUid = 'demo-user-' + Date.now();
-    // Create a mock user object that satisfies the necessary parts of the User interface
-    const mockUser = {
-        uid: mockUid,
-        email: email,
-        displayName: email.includes('parent') ? 'Parent Admin' : 'Child User',
-        emailVerified: true,
-        isAnonymous: false,
-        getIdToken: async () => "mock-token-demo",
-        metadata: {},
-        providerData: [],
-        refreshToken: 'mock',
-        tenantId: null,
-        delete: async () => {},
-        toJSON: () => ({}),
-        reload: async () => {},
-    } as unknown as User;
-
-    setCurrentUser(mockUser);
-
-    if (email?.includes('parent')) {
-      setUserProfile({ ...MOCK_ADMIN_PROFILE, uid: mockUid, email: email });
-    } else {
-      setUserProfile({ ...MOCK_CHILD_PROFILE, uid: mockUid, email: email });
+    } catch (error) {
+      console.error("Error signing out:", error);
+      throw error;
     }
   };
 
-  const isAdmin = userProfile?.role === UserRole.ADMIN;
+  const refreshProfile = async () => {
+    if (user) {
+      try {
+        const profile = await getUserProfile(user.uid);
+        setUserProfile(profile);
+      } catch (error) {
+        console.error("Error refreshing profile:", error);
+      }
+    }
+  };
+
+  // Helper computed values
+  const isAuthenticated = !!user;
+  const isApproved = userProfile?.approvalStatus === ApprovalStatus.APPROVED;
+  const isPending = userProfile?.approvalStatus === ApprovalStatus.PENDING;
+  const isSuperAdmin = userProfile?.role === UserRole.SUPER_ADMIN;
+  const isParent = userProfile?.role === UserRole.PARENT;
+  const isChild = userProfile?.role === UserRole.CHILD;
+
+  const value: AuthContextType = {
+    user,
+    userProfile,
+    loading,
+    isAuthenticated,
+    isApproved,
+    isPending,
+    isSuperAdmin,
+    isParent,
+    isChild,
+    signIn,
+    signUp,
+    signOut,
+    refreshProfile
+  };
 
   return (
-    <AuthContext.Provider value={{ currentUser, userProfile, loading, logout, isAdmin, simulateLogin, isDemo }}>
+    <AuthContext.Provider value={value}>
       {!loading && children}
     </AuthContext.Provider>
   );

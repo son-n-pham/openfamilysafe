@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { signInWithEmailAndPassword, createUserWithEmailAndPassword, signInWithPopup, updateProfile } from 'firebase/auth';
+import { signInWithPopup, updateProfile } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { Button, Input, Card } from '../components/UI';
 import { useNavigate } from 'react-router-dom';
@@ -14,11 +14,17 @@ const Login: React.FC = () => {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
+  // Registration Role State
+  const [role, setRole] = useState<'parent' | 'child'>('parent');
+  const [parentEmail, setParentEmail] = useState('');
+
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
-  const { simulateLogin } = useAuth();
+  // Note: removing simulateLogin if it's not available in context, keeping signIn/signUp
+  const { signIn, signUp } = useAuth();
 
   const handleGoogleLogin = async () => {
     setError('');
@@ -41,62 +47,80 @@ const Login: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setLoading(true);
 
     try {
       if (isLogin) {
         // --- LOGIN FLOW ---
-        await signInWithEmailAndPassword(auth, email, password);
+        await signIn(email, password);
+        navigate('/');
       } else {
         // --- REGISTER FLOW ---
+        // Basic Validation
         if (password !== confirmPassword) {
           throw new Error('Passwords do not match.');
         }
         if (password.length < 6) {
           throw new Error('Password should be at least 6 characters.');
         }
-        
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        
-        // Update the user's display name immediately after creation
-        if (name && userCredential.user) {
-          await updateProfile(userCredential.user, {
-            displayName: name
-          });
+
+        // Child specific validation
+        if (role === 'child') {
+           if (!parentEmail.trim()) {
+             throw new Error('Parent email is required for child registration.');
+           }
+           if (parentEmail.trim().toLowerCase() === email.trim().toLowerCase()) {
+             throw new Error('Parent email cannot be the same as your email.');
+           }
         }
+        
+        // Execute Sign Up via Context
+        await signUp(
+            email, 
+            password, 
+            role, 
+            role === 'child' ? parentEmail : undefined
+        );
+        
+        // Update the user's display name if provided
+        if (name && auth.currentUser) {
+          // This runs after signUp has successfully created the user and profile
+          await updateProfile(auth.currentUser, {
+            displayName: name
+          }).catch(err => console.error("Failed to update display name:", err));
+        }
+
+        // Set Success Message
+        const message = role === 'parent' 
+            ? "Registration successful! Please wait for admin approval."
+            : "Registration successful! Please wait for your parent to approve your account.";
+        
+        setSuccessMessage(message);
+        // We stay on the page to show the success message
       }
-      navigate('/');
     } catch (err: any) {
       // Handle manual validation errors
-      if (err.message === 'Passwords do not match.' || err.message.includes('characters')) {
+      if (err.message === 'Passwords do not match.' || 
+          err.message.includes('characters') || 
+          err.message.includes('required') || 
+          err.message.includes('Parent email')) {
         setError(err.message);
         setLoading(false);
         return;
       }
       handleAuthError(err);
     } finally {
-      // If successful, component unmounts via navigate, so state update usually not needed,
-      // but if error occurred we stop loading.
-      if (!auth.currentUser) setLoading(false);
+      // If we set a success message, we stop loading but don't reset form immediately
+      if (!auth.currentUser && !successMessage) setLoading(false);
+      // Ensure loading is off if we have success message
+      if (successMessage) setLoading(false);
     }
   };
 
   const handleAuthError = (err: any) => {
     console.error("Auth Error:", err);
-      
-    const isConfigError = 
-      err.code === "auth/api-key-not-valid" || 
-      err.code === "auth/invalid-api-key" || 
-      err.code === "auth/configuration-not-found" || 
-      err.code === "auth/operation-not-allowed" ||
-      err.message?.includes("api-key");
-
-    if (isConfigError) {
-      console.warn("Firebase Auth not fully configured. Switching to Demo Mode.");
-      simulateLogin(email || "demo-user@example.com");
-      navigate('/');
-      return;
-    }
+    // If we had a demo mode fallback, it would go here. Removed for now as simulateLogin is missing.
 
     let message = 'Failed to authenticate.';
     if (err.code === 'auth/wrong-password') message = 'Incorrect password.';
@@ -107,6 +131,36 @@ const Login: React.FC = () => {
     setError(message);
     setLoading(false);
   };
+
+  // Success View
+  if (successMessage) {
+    return (
+      <div className="min-h-[90vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
+          <div className="sm:mx-auto sm:w-full sm:max-w-md">
+            <Card className="p-8 text-center shadow-xl">
+               <div className="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-green-100 mb-4">
+                  <svg className="h-6 w-6 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M5 13l4 4L19 7" />
+                  </svg>
+               </div>
+               <h2 className="text-2xl font-bold text-gray-900 mb-2">Registration Successful</h2>
+               <p className="text-gray-600 mb-6">{successMessage}</p>
+               <Button 
+                 onClick={() => { 
+                   setSuccessMessage(''); 
+                   setIsLogin(true); // Switch to login mode
+                   setPassword('');
+                   setConfirmPassword('');
+                 }} 
+                 className="w-full"
+               >
+                 Go to Sign In
+               </Button>
+            </Card>
+          </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-[90vh] flex flex-col justify-center py-12 sm:px-6 lg:px-8 bg-gray-50">
@@ -130,6 +184,7 @@ const Login: React.FC = () => {
           {/* Tabbed Interface */}
           <div className="flex border-b border-gray-200">
             <button
+              type="button"
               onClick={() => setIsLogin(true)}
               className={`w-1/2 py-4 text-center text-sm font-medium transition-colors duration-200 ${
                 isLogin 
@@ -140,6 +195,7 @@ const Login: React.FC = () => {
               Sign In
             </button>
             <button
+              type="button"
               onClick={() => setIsLogin(false)}
               className={`w-1/2 py-4 text-center text-sm font-medium transition-colors duration-200 ${
                 !isLogin 
@@ -154,10 +210,38 @@ const Login: React.FC = () => {
           <div className="py-8 px-4 sm:px-10">
             <form className="space-y-5" onSubmit={handleSubmit}>
               
-              {/* Extra Field for Sign Up */}
               {!isLogin && (
-                <div className="animate-fade-in-down">
-                  <Input
+                <div className="animate-fade-in-down space-y-5">
+                   {/* Role Selection */}
+                   <div>
+                     <label className="block text-sm font-medium text-gray-700 mb-2">I am a...</label>
+                     <div className="grid grid-cols-2 gap-4">
+                        <label className={`cursor-pointer border rounded-lg p-3 text-center transition-all ${role === 'parent' ? 'border-brand-600 bg-brand-50 text-brand-700 font-bold ring-1 ring-brand-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                           <input 
+                              type="radio" 
+                              name="role" 
+                              value="parent" 
+                              checked={role === 'parent'} 
+                              onChange={() => setRole('parent')} 
+                              className="sr-only"
+                           />
+                           Parent
+                        </label>
+                        <label className={`cursor-pointer border rounded-lg p-3 text-center transition-all ${role === 'child' ? 'border-brand-600 bg-brand-50 text-brand-700 font-bold ring-1 ring-brand-600' : 'border-gray-200 text-gray-600 hover:bg-gray-50'}`}>
+                           <input 
+                              type="radio" 
+                              name="role" 
+                              value="child" 
+                              checked={role === 'child'} 
+                              onChange={() => setRole('child')} 
+                              className="sr-only"
+                           />
+                           Child
+                        </label>
+                     </div>
+                   </div>
+
+                   <Input
                     label="Full Name"
                     type="text"
                     required
@@ -186,9 +270,8 @@ const Login: React.FC = () => {
                 placeholder="••••••••"
               />
 
-              {/* Extra Field for Sign Up */}
               {!isLogin && (
-                 <div className="animate-fade-in-down">
+                 <div className="animate-fade-in-down space-y-5">
                   <Input
                     label="Confirm Password"
                     type="password"
@@ -197,6 +280,24 @@ const Login: React.FC = () => {
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="••••••••"
                   />
+
+                  {role === 'child' && (
+                     <div className="bg-blue-50 p-4 rounded-lg border border-blue-100">
+                        <h4 className="text-sm font-medium text-blue-900 mb-2">Parent Approval Required</h4>
+                        <Input
+                          label="Parent's Email Address"
+                          type="email"
+                          required
+                          value={parentEmail}
+                          onChange={(e) => setParentEmail(e.target.value)}
+                          placeholder="parent@example.com"
+                          className="bg-white"
+                        />
+                        <p className="text-xs text-blue-700 mt-2">
+                           Your parent will need to approve your account before you can sign in.
+                        </p>
+                     </div>
+                  )}
                 </div>
               )}
 
@@ -238,7 +339,7 @@ const Login: React.FC = () => {
               </div>
 
               <Button type="submit" className="w-full" size="lg" isLoading={loading}>
-                {isLogin ? 'Sign In' : 'Sign Up'}
+                {isLogin ? 'Sign In' : 'Create Account'}
               </Button>
             </form>
 
@@ -281,19 +382,17 @@ const Login: React.FC = () => {
               </div>
             </div>
 
-            {/* Demo Credentials Footer */}
+            {/* Demo Credentials Footer - Updated for Role Context if needed, but keeping simple for now */}
             <div className="mt-8 bg-gray-50 rounded-lg p-4 border border-gray-100">
                <p className="text-xs text-gray-500 text-center uppercase tracking-wide font-semibold mb-3">Demo Accounts</p>
                <div className="grid grid-cols-2 gap-4">
                  <div onClick={() => { setEmail('parent@example.com'); setPassword('pass123'); setIsLogin(true); }} className="cursor-pointer hover:bg-white p-2 rounded transition-colors text-center border border-transparent hover:border-gray-200">
                      <div className="text-xs font-bold text-gray-900">Parent</div>
                      <div className="text-[10px] text-gray-500">parent@example.com</div>
-                     <div className="text-[10px] text-gray-400">pass123</div>
                  </div>
                  <div onClick={() => { setEmail('child@example.com'); setPassword('pass123'); setIsLogin(true); }} className="cursor-pointer hover:bg-white p-2 rounded transition-colors text-center border border-transparent hover:border-gray-200">
                      <div className="text-xs font-bold text-gray-900">Child</div>
                      <div className="text-[10px] text-gray-500">child@example.com</div>
-                     <div className="text-[10px] text-gray-400">pass123</div>
                  </div>
                </div>
             </div>

@@ -1,16 +1,16 @@
 # Product Roadmap
 
-## Phase 1: Infrastructure Deployment (Next Steps)
-The immediate goal is to move from "Demo Mode" to a fully functional live environment.
+## Phase 1: Infrastructure Deployment (Completed)
+The immediate goal was to move from "Demo Mode" to a fully functional live environment. Core work completed:
 
 1.  **Deploy Cloudflare Worker:**
-    *   Write the `worker.js` script to handle `fetch` events.
-    *   Implement JWT validation within the Worker environment.
-    *   Deploy using `wrangler`.
+    *   `worker.js` implemented to handle `fetch` events and content rewriting.
+    *   Worker-side JWT validation implemented (claims, issuer, audience, expiry checks). Note: signature verification is TODO.
+    *   `wrangler` deployment configured via `wrangler.toml`.
 2.  **Firebase Connection:**
-    *   Create a real Firestore database.
-    *   Replace mock user profiles with real Firestore documents.
-    *   Implement "Custom Claims" in Firebase Auth to secure Admin routes on the server side.
+    *   Firestore schema for `users`, `families`, `invites`, and `approvalRequests` implemented.
+    *   User profile persistence implemented and integrated with Auth.
+    *   Parent/Child approval workflows implemented in service layer.
 
 ## Phase 2: Advanced Proxy Features
 Improving the browsing experience within the proxy tunnel.

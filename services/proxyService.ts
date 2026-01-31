@@ -1,4 +1,13 @@
 import { User } from 'firebase/auth';
+import { isUserApproved, canAccessProxy, getUserProfile } from './userService';
+import { UserProfile, ApprovalStatus } from '../types';
+
+export class ProxyAccessDeniedError extends Error {
+  constructor(public reason: 'PENDING' | 'REJECTED' | 'SUSPENDED', message: string) {
+    super(message);
+    this.name = 'ProxyAccessDeniedError';
+  }
+}
 
 // ==============================================================================
 // 🚀 DEPLOYMENT CONFIGURATION
@@ -13,13 +22,43 @@ export const getProxyMode = (): 'LIVE' | 'DEMO' => {
 
 // ==============================================================================
 
-export const fetchProxiedContent = async (targetUrl: string, user: User | null): Promise<string> => {
+export const fetchProxiedContent = async (targetUrl: string, user: User | null, userProfile?: UserProfile | null): Promise<string> => {
   // 1. Auth Check
   if (!user) {
     throw new Error("User must be authenticated to use the proxy.");
   }
 
-  // 1a. Configuration Check
+  // 1a. Approval Status Check
+  let profile = userProfile;
+  
+  if (!profile) {
+    try {
+      profile = await getUserProfile(user.uid);
+    } catch (error) {
+      console.error("Error fetching user profile for proxy check:", error);
+      // Logic continues, handled by the next check
+    }
+  }
+
+  if (!profile) {
+    throw new Error("User profile not found. Access denied.");
+  }
+
+  if (!canAccessProxy(profile)) {
+    const status = profile.approvalStatus;
+    
+    if (status === ApprovalStatus.PENDING) {
+      throw new ProxyAccessDeniedError('PENDING', "Your account is pending approval. Please wait for admin/parent approval.");
+    } else if (status === ApprovalStatus.REJECTED) {
+      throw new ProxyAccessDeniedError('REJECTED', "Your account access has been denied.");
+    } else if (status === ApprovalStatus.SUSPENDED) {
+      throw new ProxyAccessDeniedError('SUSPENDED', "Your account has been suspended.");
+    } else {
+      throw new Error("Access Denied: You are not authorized to use this service.");
+    }
+  }
+
+  // 1b. Configuration Check
   if (!WORKER_ENDPOINT) {
     throw new Error("Proxy Worker URL is not configured (VITE_PROXY_WORKER_URL missing).");
   }
@@ -42,7 +81,8 @@ export const fetchProxiedContent = async (targetUrl: string, user: User | null):
       
       response = await fetch(proxyUrl.toString(), {
         headers: {
-          'Authorization': `Bearer ${token}`
+          'Authorization': `Bearer ${token}`,
+          'X-Filter-Level': profile.filterLevel || 'MODERATE'
         }
       });
     } catch (err) {
