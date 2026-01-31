@@ -1,0 +1,5 @@
+{
+  "name": "OpenFamilySafe",
+  "description": "A secure, parent-controlled web proxy interface designed for family safety and content management.",
+  "requestFramePermissions": []
+}
