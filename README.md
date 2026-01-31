@@ -34,8 +34,11 @@ This software is provided for **educational and parental control purposes only**
 ## 🏃‍♂️ Getting Started
 
 1.  Clone the repository.
-2.  Install dependencies: `npm install`.
-3.  Run locally: `npm run dev`.
+2.  **Configure Environment:**
+    *   Copy `.env.example` to `.env`: `cp .env.example .env`
+    *   Edit `.env` and fill in your Firebase credentials and Cloudflare Worker URL.
+3.  Install dependencies: `npm install`.
+4.  Run locally: `npm run dev`.
 
 ## ☁️ Deployment Guide
 
@@ -47,10 +50,10 @@ The worker acts as the secure proxy.
 3.  **Deploy:** `wrangler deploy`
     *   *First Time Setup:* If prompted to "register a workers.dev subdomain", type a unique name (e.g., `my-family-proxy-app`) and press Enter.
 4.  **Copy the URL:** The terminal will output a URL like: `https://open-family-safe-proxy.my-family-proxy-app.workers.dev`
-5.  **Update Config:** Paste this URL into `services/proxyService.ts` inside the `WORKER_ENDPOINT` variable.
+5.  **Update Config:** Add this URL to your `.env` file as `VITE_PROXY_WORKER_URL`.
 
 ### 2. Frontend (Firebase)
 1.  Create a project at [console.firebase.google.com](https://console.firebase.google.com).
 2.  Enable **Authentication** (Email/Google).
-3.  Update `firebase.ts` with your config keys.
+3.  **Configure Environment:** Ensure your environment variables (from `.env`) are correctly set in your deployment environment or build process.
 4.  Deploy: `firebase deploy`

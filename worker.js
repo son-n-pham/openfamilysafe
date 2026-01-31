@@ -27,9 +27,17 @@ export default {
       return new Response("Missing 'url' query parameter.", { status: 400, headers: corsHeaders });
     }
 
-    // --- SECURITY CHECK (Placeholder) ---
-    // const authHeader = request.headers.get("Authorization");
-    // if (!authHeader) return new Response("Unauthorized", { status: 401 });
+    // --- SECURITY CHECK ---
+    const authHeader = request.headers.get("Authorization");
+    if (!authHeader) {
+        // If strict mode is enabled, or simply default to secure:
+        return new Response("Unauthorized: Missing Authorization header.", { status: 401, headers: corsHeaders });
+    } 
+    // In production, verify the token. For now, we enforce presence of header.
+    // Example verification (requires crypto or subtle):
+    // const token = authHeader.replace('Bearer ', '');
+    // ... verify token ...
+
 
     try {
       const targetUrlObj = new URL(targetUrl);

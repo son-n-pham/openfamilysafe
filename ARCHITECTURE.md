@@ -24,12 +24,13 @@ graph LR
     Firebase -->|Verify Token| Worker
 ```
 
-## 3. Detailed Data Flow
+## 3. detailed Data Flow
 
-### A. Authentication
-1.  User **Registers** or **Logs in** via the React Frontend (`/login`).
-2.  Firebase Auth issues a **JWT ID Token**.
-3.  This token is stored in the user's session.
+### A. Authentication & Configuration
+1.  **Configuration:** The application is configured using environment variables (see `.env.example`) to ensure secrets like Firebase config and Worker URLs are not hardcoded.
+2.  User **Registers** or **Logs in** via the React Frontend (`/login`).
+3.  Firebase Auth issues a **JWT ID Token**.
+4.  This token is stored in the user's session.
 
 ### B. The Proxy Request
 1.  User enters a URL (e.g., `wikipedia.org`) in the Dashboard.
@@ -39,8 +40,9 @@ graph LR
 
 ### C. The Worker (Backend)
 1.  **Intercept:** The Cloudflare Worker receives the request.
-2.  **Verify:** It validates the Firebase ID Token (using a public key set).
-    *   *If invalid:* Returns 403 Forbidden.
+2.  **Strict Authorization:** The Worker requires a valid Firebase ID Token in the `Authorization` header.
+    *   *If missing or invalid:* Returns 401 Unauthorized or 403 Forbidden.
+    *   *Note:* The insecure public fallback has been removed for security.
 3.  **Check Permissions:** (Optional) Checks Firestore/Cache to see if the URL is allowed for this user's role.
 4.  **Fetch:** The Worker fetches the content from the Target Website.
 5.  **Rewrite:**

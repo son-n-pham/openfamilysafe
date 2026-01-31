@@ -5,13 +5,13 @@ import 'firebase/compat/firestore';
 // TODO: Replace these with your actual Firebase project configuration
 // These are placeholders to prevent the app from crashing on start in the demo environment
 const firebaseConfig = {
-  apiKey: "AIzaSyAOTt2uoaV5sPszXuAwqY2hVlSIP4mpE90",
-  authDomain: "openfamilysafe.firebaseapp.com",
-  projectId: "openfamilysafe",
-  storageBucket: "openfamilysafe.firebasestorage.app",
-  messagingSenderId: "355726338299",
-  appId: "1:355726338299:web:5b8f5a3193fc005282685e",
-  measurementId: "G-ZVVE0P3LGB"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID
 };
 
 const app = firebase.initializeApp(firebaseConfig);

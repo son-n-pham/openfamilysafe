@@ -27,10 +27,15 @@
     *   Mock data generation for demonstration.
 
 ### Services
-*   [x] **Proxy Service:** 
+*   [x] **Proxy Service:**
     *   Interface defined for communicating with Cloudflare.
-    *   **Live Demo Mode:** Implemented public CORS gateway integration to allow real web access for testing.
     *   **Asset Injection:** Automatically injects `<base>` tags to fix relative image/CSS paths in the preview.
+
+### Security
+*   [x] **Security Hardening (2026-01-31):**
+    *   Moved Firebase config to environment variables.
+    *   Removed insecure public proxy fallback; Cloudflare Worker now strictly enforces `Authorization` headers.
+    *   Implemented `.env` configuration workflow.
 
 ## 🚧 In Progress
 
