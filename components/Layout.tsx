@@ -1,11 +1,13 @@
 import React, { Fragment } from 'react';
 import { useAuth } from '../services/authContext';
+import { getProxyMode } from '../services/proxyService';
 import { Button } from './UI';
 import { Link, useLocation } from 'react-router-dom';
 
 export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, userProfile, logout, isAdmin, isDemo } = useAuth();
   const location = useLocation();
+  const proxyMode = getProxyMode();
 
   const handleLogout = async () => {
     try {
@@ -116,12 +118,23 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="mt-8 border-t border-gray-700 pt-8 flex flex-col md:flex-row justify-between items-center text-xs">
             <p className="mb-4 md:mb-0">&copy; {new Date().getFullYear()} OpenFamilySafe Project. All rights reserved.</p>
             
-            {/* System Status Indicator */}
-            <div className="flex items-center gap-2 px-3 py-1 bg-gray-900 rounded-full border border-gray-700 shadow-sm">
-                <div className={`h-2.5 w-2.5 rounded-full ${isDemo ? 'bg-yellow-500' : 'bg-green-500 animate-pulse'}`}></div>
-                <span className="text-gray-400 font-medium">
-                    System Status: <span className={isDemo ? 'text-yellow-500' : 'text-green-500'}>{isDemo ? 'Demo Mode' : 'Live Connection'}</span>
-                </span>
+            {/* System Status Indicators */}
+            <div className="flex flex-col sm:flex-row items-center gap-3">
+               {/* Auth Status */}
+               <div className="flex items-center gap-2 px-3 py-1 bg-gray-900 rounded-full border border-gray-700 shadow-sm">
+                  <div className={`h-2 w-2 rounded-full ${isDemo ? 'bg-yellow-500' : 'bg-green-500'}`}></div>
+                  <span className="text-gray-400 font-medium">
+                      Auth: <span className={isDemo ? 'text-yellow-500' : 'text-green-500'}>{isDemo ? 'Simulated' : 'Firebase'}</span>
+                  </span>
+              </div>
+
+              {/* Proxy Status */}
+               <div className="flex items-center gap-2 px-3 py-1 bg-gray-900 rounded-full border border-gray-700 shadow-sm">
+                  <div className={`h-2 w-2 rounded-full ${proxyMode === 'LIVE' ? 'bg-blue-500' : 'bg-orange-500'}`}></div>
+                  <span className="text-gray-400 font-medium">
+                      Proxy: <span className={proxyMode === 'LIVE' ? 'text-blue-500' : 'text-orange-500'}>{proxyMode === 'LIVE' ? 'Cloudflare Worker' : 'Public Demo'}</span>
+                  </span>
+              </div>
             </div>
           </div>
         </div>

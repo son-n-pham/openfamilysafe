@@ -1,6 +1,6 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { Input, Button, Card } from '../components/UI';
-import { fetchProxiedContent } from '../services/proxyService';
+import { fetchProxiedContent, getProxyMode } from '../services/proxyService';
 import { useAuth } from '../services/authContext';
 import { FilterLevel } from '../types';
 
@@ -43,16 +43,32 @@ const Dashboard: React.FC = () => {
       setContent(result);
     } catch (error: any) {
       console.error(error);
-      setContent(`
+      const proxyMode = getProxyMode();
+      
+      const errorContent = `
         <div style="text-align: center; color: #dc2626; padding: 40px; font-family: sans-serif;">
           <h2 style="font-size: 1.5rem; font-weight: bold; margin-bottom: 1rem;">Unable to Access Site</h2>
-          <p style="font-size: 1.1rem;">${error.message || "An unexpected error occurred."}</p>
-          <div style="margin-top: 2rem; padding: 1rem; background-color: #fef2f2; border-radius: 0.5rem; border: 1px solid #fee2e2;">
-            <p style="font-size: 0.9rem; color: #7f1d1d;"><strong>Demo Note:</strong> We are using a public demo proxy. Some major sites (like Google, Facebook, YouTube) block this type of access.</p>
-            <p style="font-size: 0.9rem; color: #7f1d1d; margin-top: 0.5rem;">Try testing with <strong>wikipedia.org</strong> or <strong>example.com</strong>.</p>
+          <p style="font-size: 1.1rem; margin-bottom: 1.5rem;">${error.message || "An unexpected error occurred."}</p>
+          
+          <div style="max-w-lg mx-auto text-left padding: 1.5rem; background-color: #fef2f2; border-radius: 0.5rem; border: 1px solid #fee2e2; padding: 20px;">
+            ${proxyMode === 'DEMO' ? `
+              <h3 style="font-weight: bold; color: #991b1b; margin-bottom: 0.5rem;">⚠️ Using Public Demo Proxy</h3>
+              <p style="font-size: 0.9rem; color: #7f1d1d;">Major sites (Google, Facebook, YouTube) usually block the public demo proxy used in this preview.</p>
+              <p style="font-size: 0.9rem; color: #7f1d1d; margin-top: 0.5rem;"><strong>Try testing:</strong> wikipedia.org, example.com, or basic HTML sites.</p>
+              <p style="font-size: 0.9rem; color: #7f1d1d; margin-top: 1rem;">To fix this, ensure you have deployed your Cloudflare Worker and updated <code>services/proxyService.ts</code>.</p>
+            ` : `
+              <h3 style="font-weight: bold; color: #1e40af; margin-bottom: 0.5rem;">🔧 Cloudflare Worker Error</h3>
+              <p style="font-size: 0.9rem; color: #1e3a8a;">You are connected to your custom Worker, but it failed to retrieve the page.</p>
+              <ul style="list-style-type: disc; margin-left: 1.5rem; margin-top: 0.5rem; font-size: 0.9rem; color: #1e3a8a;">
+                <li>The target site might be blocking headless requests.</li>
+                <li>Your Worker deployment might have hit a CPU/Memory limit.</li>
+                <li>Check your Cloudflare Dashboard > Workers > Logs for details.</li>
+              </ul>
+            `}
           </div>
         </div>
-      `);
+      `;
+      setContent(errorContent);
     } finally {
       setIsLoading(false);
     }

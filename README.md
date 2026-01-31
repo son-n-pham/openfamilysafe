@@ -36,4 +36,21 @@ This software is provided for **educational and parental control purposes only**
 1.  Clone the repository.
 2.  Install dependencies: `npm install`.
 3.  Run locally: `npm run dev`.
-4.  **Test the Proxy:** Enter a URL (e.g., `wikipedia.org`) in the dashboard. The app will fetch the real live content using a demo gateway.
+
+## ☁️ Deployment Guide
+
+### 1. Cloudflare Worker (Backend)
+The worker acts as the secure proxy.
+
+1.  Install the CLI: `npm install -g wrangler`
+2.  Login: `wrangler login`
+3.  **Deploy:** `wrangler deploy`
+    *   *First Time Setup:* If prompted to "register a workers.dev subdomain", type a unique name (e.g., `my-family-proxy-app`) and press Enter.
+4.  **Copy the URL:** The terminal will output a URL like: `https://open-family-safe-proxy.my-family-proxy-app.workers.dev`
+5.  **Update Config:** Paste this URL into `services/proxyService.ts` inside the `WORKER_ENDPOINT` variable.
+
+### 2. Frontend (Firebase)
+1.  Create a project at [console.firebase.google.com](https://console.firebase.google.com).
+2.  Enable **Authentication** (Email/Google).
+3.  Update `firebase.ts` with your config keys.
+4.  Deploy: `firebase deploy`

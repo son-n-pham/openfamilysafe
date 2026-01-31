@@ -10,12 +10,19 @@ import { User } from 'firebase/auth';
 // 5. Paste it below inside the quotes:
 // ==============================================================================
 
-const WORKER_ENDPOINT: string = ''; 
+// TODO: PASTE YOUR CLOUDFLARE WORKER URL HERE
+const WORKER_ENDPOINT: string = 'https://openfamilysafe.workers.dev'; 
 
 // ==============================================================================
 
 // Fallback for demo purposes (does not support Auth tokens effectively)
 const DEMO_PROXY_BASE = 'https://api.allorigins.win/raw?url=';
+
+export const getProxyMode = (): 'LIVE' | 'DEMO' => {
+  // We consider it LIVE if the user has changed the default endpoint to their own workers.dev address
+  const isDefault = WORKER_ENDPOINT === 'https://openfamilysafe.workers.dev' || WORKER_ENDPOINT === '';
+  return (!isDefault && WORKER_ENDPOINT.includes('workers.dev')) ? 'LIVE' : 'DEMO';
+};
 
 export const fetchProxiedContent = async (targetUrl: string, user: User | null): Promise<string> => {
   // 1. Auth Check
@@ -30,9 +37,10 @@ export const fetchProxiedContent = async (targetUrl: string, user: User | null):
 
   try {
     let response: Response;
+    const mode = getProxyMode();
 
     // 3. Determine Proxy Method
-    if (WORKER_ENDPOINT && WORKER_ENDPOINT.length > 5) {
+    if (mode === 'LIVE') {
       // --- LIVE MODE: Use Cloudflare Worker with Auth ---
       // The Worker handles the fetch and CORS headers.
       
