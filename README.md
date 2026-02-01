@@ -59,3 +59,11 @@ The worker acts as the secure proxy.
 2.  Enable **Authentication** (Email/Google).
 3.  **Configure Environment:** Ensure your environment variables (from `.env`) are correctly set in your deployment environment or build process.
 4.  Deploy: `firebase deploy`
+
+### 3. Frontend (GitHub Pages)
+This option uses GitHub Actions and repo secrets to build and deploy the app.
+
+1.  Add the Firebase and proxy values from `.env.example` as GitHub Actions secrets.
+2.  Ensure `vite.config.ts` has `base: '/openfamilysafe/'` for this repo name.
+3.  Push to `main` to trigger the Pages deployment workflow.
+4.  In Firebase Console, add `https://<your-username>.github.io` to **Authentication → Settings → Authorized domains**.
