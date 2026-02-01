@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { signInWithPopup, updateProfile } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { signInWithRedirect, getRedirectResult, updateProfile } from 'firebase/auth';
 import { auth, googleProvider } from '../firebase';
 import { Button, Input, Card } from '../components/UI';
 import { useNavigate } from 'react-router-dom';
@@ -26,21 +26,41 @@ const Login: React.FC = () => {
   // Note: removing simulateLogin if it's not available in context, keeping signIn/signUp
   const { signIn, signUp } = useAuth();
 
+  // Handle redirect result on component mount
+  useEffect(() => {
+    const handleRedirectResult = async () => {
+      setLoading(true);
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) {
+          // Successfully signed in via redirect
+          navigate('/');
+        }
+      } catch (err: any) {
+        console.error("Google Redirect Error:", err);
+        // Only show error if it's not a null result (user didn't use redirect)
+        if (err.code && err.code !== 'auth/null-user') {
+          handleAuthError(err);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    handleRedirectResult();
+  }, [navigate]);
+
   const handleGoogleLogin = async () => {
     setError('');
     setLoading(true);
     try {
-      await signInWithPopup(auth, googleProvider);
-      navigate('/');
+      // Redirect to Google for authentication
+      await signInWithRedirect(auth, googleProvider);
+      // User will be redirected away, no need for further code
     } catch (err: any) {
       console.error("Google Login Error:", err);
-      if (err.code === 'auth/popup-closed-by-user') {
-        setLoading(false);
-        return; 
-      }
       handleAuthError(err);
-    } finally {
-      if (auth.currentUser) setLoading(false);
+      setLoading(false);
     }
   };
 
